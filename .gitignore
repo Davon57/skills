@@ -1,0 +1,4 @@
+.trae/skills/frontend-quality-audit/tool/node_modules/
+.trae/skills/frontend-quality-audit/tool/.audit-reports/
+.trae/skills/frontend-quality-audit/tool/*.html
+.trae/skills/frontend-quality-audit/tool/*.md
