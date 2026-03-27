@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "report": {
+    "defaultFileName": "前端质量审计报告",
+    "defaultFormats": ["md", "html"]
+  },
+  "weights": {
+    "architecture": 0.28,
+    "naming": 0.16,
+    "hygiene": 0.22,
+    "maintainability": 0.22,
+    "tooling": 0.12
+  },
+  "thresholds": {
+    "largeFileLines": 400,
+    "veryLargeFileLines": 800,
+    "longLineLength": 160,
+    "singleLetterVariableWarningCount": 5,
+    "singleLetterVariableCriticalCount": 15,
+    "consoleStatementWarningCount": 10,
+    "duplicateImportWarningCount": 5,
+    "commentedCodeWarningCount": 5
+  },
+  "gradeBands": [
+    { "grade": "A", "min": 90, "max": 100 },
+    { "grade": "B", "min": 75, "max": 89 },
+    { "grade": "C", "min": 60, "max": 74 },
+    { "grade": "D", "min": 40, "max": 59 },
+    { "grade": "E", "min": 0, "max": 39 }
+  ],
+  "categories": [
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "signals": ["large-files", "mixed-responsibilities", "ui-api-state-coupling"]
+    },
+    {
+      "id": "naming",
+      "title": "Naming",
+      "signals": ["single-letter-variables", "ambiguous-symbols"]
+    },
+    {
+      "id": "hygiene",
+      "title": "Hygiene",
+      "signals": ["console-debugger", "lint-disables", "commented-code", "todo-fixme"]
+    },
+    {
+      "id": "maintainability",
+      "title": "Maintainability",
+      "signals": ["duplicate-imports", "long-lines", "repeated-logic"]
+    },
+    {
+      "id": "tooling",
+      "title": "Tooling",
+      "signals": ["eslint-missing", "tsconfig-missing", "lint-script-missing", "typecheck-script-missing"]
+    }
+  ],
+  "recommendationOrder": [
+    "拆分超大文件",
+    "建立容器组件 / 展示组件 / hooks / services 边界",
+    "清理单字母变量与歧义命名",
+    "移除 debug 与禁用指令",
+    "启用并收敛 lint 与 typecheck",
+    "处理重复导入与重复逻辑"
+  ]
+}

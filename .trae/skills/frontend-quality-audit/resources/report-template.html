@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>前端质量审计报告</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --bg-soft: #0d1a2f;
+      --panel: rgba(12, 21, 38, 0.88);
+      --panel-strong: rgba(17, 28, 49, 0.96);
+      --card: rgba(255, 255, 255, 0.04);
+      --card-soft: rgba(255, 255, 255, 0.03);
+      --line: rgba(255, 255, 255, 0.09);
+      --line-strong: rgba(120, 164, 255, 0.22);
+      --text: #eff4ff;
+      --muted: #98a5c4;
+      --accent: #8cb4ff;
+      --accent-strong: #b5cbff;
+      --ok: #47d9a3;
+      --warn: #ffbf69;
+      --danger: #ff7373;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 20px;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(109, 159, 255, 0.22), transparent 28%),
+        radial-gradient(circle at top right, rgba(71, 217, 163, 0.12), transparent 18%),
+        linear-gradient(180deg, var(--bg) 0%, #091321 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.6), transparent 90%);
+    }
+
+    .app {
+      max-width: 1720px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .sidebar {
+      display: grid;
+      gap: 16px;
+    }
+
+    .main {
+      display: grid;
+      gap: 18px;
+    }
+
+    .main > * {
+      grid-column: 1 / -1;
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .col-12 {
+      grid-column: 1 / -1;
+    }
+
+    .col-7 {
+      grid-column: span 7;
+    }
+
+    .col-6 {
+      grid-column: span 6;
+    }
+
+    .col-5 {
+      grid-column: span 5;
+    }
+
+    .panel-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel,
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel::after,
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.03));
+      opacity: 0.7;
+    }
+
+    .hero {
+      padding: 28px;
+      background:
+        radial-gradient(circle at top right, rgba(140, 180, 255, 0.24), transparent 26%),
+        linear-gradient(135deg, rgba(19, 33, 58, 0.98), rgba(10, 18, 32, 0.98));
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .sidebar .panel {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+    }
+
+    .eyebrow {
+      color: var(--accent-strong);
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      margin-top: 12px;
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+    }
+
+    h2 {
+      font-size: 18px;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .hero-copy {
+      max-width: 880px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .hero-meta {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .meta-card,
+    .metric-card,
+    .mini-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+
+    .meta-card strong,
+    .metric-card strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 24px;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .value {
+      margin-top: 8px;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .score-grid,
+    .overview-grid,
+    .main-grid,
+    .cockpit-grid,
+    .terrain-grid,
+    .signal-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .overview-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .score-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .cockpit-grid {
+      grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
+      align-items: stretch;
+    }
+
+    .terrain-grid {
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      align-items: stretch;
+    }
+
+    .main-grid {
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+    }
+
+    .signal-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .summary-rail {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .summary-overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .fold-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .fold-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--card);
+      overflow: hidden;
+    }
+
+    .fold-item summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .fold-item summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .fold-item > div {
+      padding: 0 16px 16px;
+    }
+
+    .sidebar-list,
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .sidebar-list li,
+    ul li {
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+
+    .sidebar-list li:first-child,
+    ul li:first-child {
+      margin-top: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .section-note {
+      margin: -4px 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    th,
+    td {
+      padding: 13px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .compact td,
+    .compact th {
+      padding: 10px 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 70px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .critical {
+      color: #ffd1d1;
+      background: rgba(255, 115, 115, 0.16);
+      border-color: rgba(255, 115, 115, 0.26);
+    }
+
+    .high {
+      color: #ffe0ad;
+      background: rgba(255, 191, 105, 0.14);
+      border-color: rgba(255, 191, 105, 0.24);
+    }
+
+    .medium {
+      color: #d4e2ff;
+      background: rgba(140, 180, 255, 0.14);
+      border-color: rgba(140, 180, 255, 0.22);
+    }
+
+    .low {
+      color: #cbffea;
+      background: rgba(71, 217, 163, 0.14);
+      border-color: rgba(71, 217, 163, 0.22);
+    }
+
+    .finding-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .action-card-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .action-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .action-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .action-card-title {
+      display: grid;
+      gap: 8px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .action-card dl {
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .action-card dt {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .action-card dd {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .finding-card {
+      background: var(--card-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .card {
+      display: grid;
+      gap: 14px;
+    }
+
+    .finding-card p + p,
+    .finding-card ul,
+    .mini-card p {
+      margin-top: 10px;
+    }
+
+    .mini-card h3 {
+      color: var(--text);
+    }
+
+    .mini-card p {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .score-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .score-card .value {
+      font-size: 30px;
+    }
+
+    .gauge-card,
+    .terrain-card {
+      display: grid;
+      gap: 18px;
+      min-height: 100%;
+    }
+
+    .gauge-shell {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+    }
+
+    .gauge-visual {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+    }
+
+    .gauge-svg {
+      width: 220px;
+      height: 220px;
+      transform: rotate(-90deg);
+      filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.26));
+    }
+
+    .gauge-track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 14;
+    }
+
+    .gauge-progress {
+      fill: none;
+      stroke: url(#gaugeGradient);
+      stroke-linecap: round;
+      stroke-width: 14;
+      stroke-dasharray: 408;
+      stroke-dashoffset: var(--gauge-offset);
+    }
+
+    .gauge-center {
+      position: absolute;
+      inset: 50%;
+      width: 128px;
+      height: 128px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border-radius: 50%;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.08), rgba(5, 10, 22, 0.96));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .gauge-score {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .gauge-grade {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .gauge-copy {
+      display: grid;
+      gap: 12px;
+    }
+
+    .gauge-copy p {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .score-bars {
+      display: grid;
+      gap: 14px;
+    }
+
+    .score-bar {
+      display: grid;
+      gap: 8px;
+    }
+
+    .score-bar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .score-track {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .score-fill {
+      height: 100%;
+      width: var(--bar-width);
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(71, 217, 163, 0.9), rgba(140, 180, 255, 0.92) 58%, rgba(255, 191, 105, 0.94));
+      box-shadow: 0 0 24px rgba(140, 180, 255, 0.26);
+    }
+
+    .signal-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 132px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .signal-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -28px;
+      height: 70px;
+      background: radial-gradient(circle, rgba(140, 180, 255, 0.2), transparent 70%);
+      pointer-events: none;
+    }
+
+    .signal-value {
+      margin-top: 12px;
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .signal-meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .skyline-chart {
+      display: grid;
+      gap: 16px;
+    }
+
+    .skyline-columns {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      align-items: end;
+      min-height: 260px;
+    }
+
+    .skyline-column {
+      display: grid;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .skyline-bar-wrap {
+      display: flex;
+      align-items: end;
+      min-height: 180px;
+    }
+
+    .skyline-bar {
+      width: 100%;
+      height: var(--column-height);
+      min-height: 24px;
+      border-radius: 18px 18px 10px 10px;
+      background:
+        linear-gradient(180deg, rgba(181, 203, 255, 0.94), rgba(140, 180, 255, 0.58)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+      border: 1px solid rgba(181, 203, 255, 0.24);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 18px 28px rgba(80, 113, 183, 0.22);
+    }
+
+    .skyline-bar.is-critical {
+      background: linear-gradient(180deg, rgba(255, 191, 105, 0.96), rgba(255, 115, 115, 0.66));
+      border-color: rgba(255, 191, 105, 0.28);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 18px 28px rgba(255, 140, 118, 0.22);
+    }
+
+    .skyline-meta {
+      display: grid;
+      gap: 5px;
+    }
+
+    .skyline-name {
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    .skyline-caption {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .heat-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .heat-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .heat-row-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .heat-track {
+      position: relative;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .heat-fill {
+      height: 100%;
+      width: var(--heat-width);
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(71, 217, 163, 0.84), rgba(140, 180, 255, 0.9), rgba(255, 115, 115, 0.92));
+      box-shadow: 0 0 18px rgba(140, 180, 255, 0.24);
+    }
+
+    .aside-kicker {
+      margin-bottom: 10px;
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1480px) {
+      .summary-rail {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-overview,
+      .fold-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .summary-overview,
+      .fold-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .board-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .col-5,
+      .col-6,
+      .col-7,
+      .col-12 {
+        grid-column: span 1;
+      }
+
+      .score-grid,
+      .overview-grid,
+      .hero-meta,
+      .main-grid,
+      .cockpit-grid,
+      .terrain-grid,
+      .finding-grid,
+      .action-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .signal-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .gauge-shell {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 16px;
+      }
+
+      .summary-overview,
+      .fold-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .board-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .score-grid,
+      .overview-grid,
+      .hero-meta,
+      .main-grid,
+      .cockpit-grid,
+      .terrain-grid,
+      .finding-grid,
+      .action-card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .signal-grid,
+      .skyline-columns {
+        grid-template-columns: 1fr;
+      }
+
+      .gauge-visual,
+      .gauge-svg {
+        width: 180px;
+        height: 180px;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="summary-rail">
+          <div class="stack">
+            <div>
+              <div class="aside-kicker">项目速览</div>
+              <h2>{{PROJECT_NAME}}</h2>
+              <p class="muted">{{AUDIT_DATE}}</p>
+            </div>
+            <div class="mini-card">
+              <div class="label">总分</div>
+              <div class="value">{{OVERALL_SCORE}}</div>
+            </div>
+            <div class="mini-card">
+              <div class="label">等级</div>
+              <div class="value">{{GRADE}}</div>
+            </div>
+          </div>
+          <div class="stack">
+            <div>
+              <div class="aside-kicker">关键指标</div>
+              <div class="summary-overview">
+                {{OVERVIEW_CARDS}}
+              </div>
+            </div>
+            <div class="mini-card">
+              <div class="aside-kicker">技术栈快照</div>
+              <ul class="sidebar-list">
+                {{STACK_ITEMS}}
+              </ul>
+            </div>
+          </div>
+          <div>
+            <div class="aside-kicker">补充信息</div>
+            <div class="fold-grid">
+              <details class="fold-item" open>
+                <summary>{{EXTERNAL_HEADING}}</summary>
+                <div>
+                  <table class="compact">
+                    <thead>
+                      <tr>
+                        <th>{{EXTERNAL_TOOL}}</th>
+                        <th>{{EXTERNAL_STATUS}}</th>
+                        <th>{{EXTERNAL_ERRORS}}</th>
+                        <th>{{EXTERNAL_WARNINGS}}</th>
+                        <th>{{EXTERNAL_SUMMARY}}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {{EXTERNAL_ROWS}}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+              <details class="fold-item">
+                <summary>{{ROADMAP_HEADING}}</summary>
+                <div>
+                  <table class="compact">
+                    <thead>
+                      <tr>
+                        <th>{{ROADMAP_PHASE}}</th>
+                        <th>{{ROADMAP_GOAL}}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {{ROADMAP_ROWS}}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+              <details class="fold-item">
+                <summary>{{DIRECTORY_HEADING}}</summary>
+                <div>
+                  <table class="compact">
+                    <thead>
+                      <tr>
+                        <th>{{DIRECTORY_TABLE_DIRECTORY}}</th>
+                        <th>{{DIRECTORY_TABLE_FILES}}</th>
+                        <th>{{DIRECTORY_TABLE_RISK}}</th>
+                        <th>{{DIRECTORY_TABLE_LARGE_FILES}}</th>
+                        <th>{{DIRECTORY_TABLE_SUMMARY}}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {{DIRECTORY_ROWS}}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="main">
+      <section class="hero">
+        <div class="eyebrow">Frontend Quality Audit</div>
+        <h1>前端质量审计报告</h1>
+        <p class="hero-copy">{{EXECUTIVE_SUMMARY}}</p>
+        <div class="hero-meta">
+          <div class="meta-card">
+            <div class="label">项目</div>
+            <strong>{{PROJECT_NAME}}</strong>
+          </div>
+          <div class="meta-card">
+            <div class="label">审计时间</div>
+            <strong>{{AUDIT_DATE}}</strong>
+          </div>
+          <div class="meta-card">
+            <div class="label">总分</div>
+            <strong>{{OVERALL_SCORE}}</strong>
+          </div>
+          <div class="meta-card">
+            <div class="label">等级</div>
+            <strong>{{GRADE}}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>{{MANUAL_REPAIR_HEADING}}</h2>
+        <p class="section-note">{{MANUAL_REPAIR_SUMMARY}}</p>
+        <div class="main-grid">
+          <div class="card">
+            <h3>{{OVERSIZED_BUSINESS_HEADING}}</h3>
+            <p class="section-note">{{OVERSIZED_BUSINESS_SUMMARY}}</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>{{OVERSIZED_BUSINESS_FILE}}</th>
+                  <th>{{OVERSIZED_BUSINESS_LINES}}</th>
+                  <th>{{OVERSIZED_BUSINESS_TYPE}}</th>
+                  <th>{{OVERSIZED_BUSINESS_DOMAIN}}</th>
+                  <th>{{OVERSIZED_BUSINESS_SUMMARY_COLUMN}}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{OVERSIZED_BUSINESS_ROWS}}
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>{{CLEANUP_HEADING}}</h3>
+            <p class="section-note">{{CLEANUP_SUMMARY}}</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>{{CLEANUP_FILE}}</th>
+                  <th>{{CLEANUP_SCORE}}</th>
+                  <th>{{CLEANUP_COMMENTED}}</th>
+                  <th>{{CLEANUP_TODO}}</th>
+                  <th>{{CLEANUP_CONSOLE}}</th>
+                  <th>{{CLEANUP_DEBUGGER}}</th>
+                  <th>{{CLEANUP_SKIPPED_CHECKS}}</th>
+                  <th>{{CLEANUP_DUPLICATE_IMPORTS}}</th>
+                  <th>{{CLEANUP_SUMMARY_COLUMN}}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{CLEANUP_ROWS}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <div class="board-grid">
+        <section class="panel col-8">
+          <h2>{{ISSUE_CARDS_HEADING}}</h2>
+          <p class="section-note">把高风险文件拆成卡片，开发者打开报告后就能立刻看到为什么要优先处理，以及第一步怎么下手。</p>
+          <div class="action-card-grid">
+            {{ISSUE_CARDS}}
+          </div>
+        </section>
+
+        <section class="panel col-4">
+          <h2>{{QUICK_WINS_HEADING}}</h2>
+          <p class="section-note">先处理最容易落地、但对质量收益最大的动作，帮助团队快速止血。</p>
+          <table>
+            <thead>
+              <tr>
+                <th>{{QUICK_WIN_TABLE_PRIORITY}}</th>
+                <th>{{QUICK_WIN_TABLE_FILE}}</th>
+                <th>{{QUICK_WIN_TABLE_ACTION}}</th>
+                <th>{{QUICK_WIN_TABLE_REASON}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{QUICK_WIN_ROWS}}
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="aside-kicker">补充分析</div>
+        <div class="fold-grid">
+          <details class="fold-item" open>
+            <summary>{{REFACTOR_HEADING}}</summary>
+            <div class="panel-stack">
+              <table class="compact">
+                <thead>
+                  <tr>
+                    <th>{{REFACTOR_TABLE_PRIORITY}}</th>
+                    <th>{{REFACTOR_TABLE_FILE}}</th>
+                    <th>{{REFACTOR_TABLE_RISK}}</th>
+                    <th>{{REFACTOR_TABLE_REASON}}</th>
+                    <th>{{REFACTOR_TABLE_NEXT_ACTION}}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{REFACTOR_ROWS}}
+                </tbody>
+              </table>
+              <div>
+                <h3>{{SPLIT_HEADING}}</h3>
+                <div class="stack">
+                  {{SPLIT_SECTIONS}}
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="fold-item">
+            <summary>{{DUPLICATE_FUNCTIONS_HEADING}}</summary>
+            <div class="panel-stack">
+              <table class="compact">
+                <thead>
+                  <tr>
+                    <th>{{DUPLICATE_FUNCTION_NAME}}</th>
+                    <th>{{DUPLICATE_FUNCTION_FILES}}</th>
+                    <th>{{DUPLICATE_FUNCTION_OCCURRENCES}}</th>
+                    <th>{{DUPLICATE_FUNCTION_LOCATIONS}}</th>
+                    <th>{{DUPLICATE_FUNCTION_SUMMARY_COLUMN}}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{DUPLICATE_FUNCTION_ROWS}}
+                </tbody>
+              </table>
+              <table class="compact">
+                <thead>
+                  <tr>
+                    <th>{{SIMILAR_FUNCTION_NAME}}</th>
+                    <th>{{SIMILAR_FUNCTION_FILES}}</th>
+                    <th>{{SIMILAR_FUNCTION_OCCURRENCES}}</th>
+                    <th>{{SIMILAR_FUNCTION_LOCATIONS}}</th>
+                    <th>{{SIMILAR_FUNCTION_SUMMARY_COLUMN}}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{SIMILAR_FUNCTION_ROWS}}
+                </tbody>
+              </table>
+              <table class="compact">
+                <thead>
+                  <tr>
+                    <th>{{MIXED_TABLE_FILE}}</th>
+                    <th>{{MIXED_TABLE_CATEGORIES}}</th>
+                    <th>{{MIXED_TABLE_TAGS}}</th>
+                    <th>{{MIXED_TABLE_SUMMARY}}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{MIXED_ROWS}}
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details class="fold-item">
+            <summary>{{COCKPIT_HEADING}}</summary>
+            <div class="panel-stack">
+              <div class="mini-card">
+                {{SCORE_GAUGE}}
+              </div>
+              <div class="mini-card">
+                <div class="aside-kicker">{{SCORE_BARS_HEADING}}</div>
+                <div class="score-bars">
+                  {{SCORE_BARS}}
+                </div>
+              </div>
+              <div class="mini-card">
+                <div class="aside-kicker">{{SIGNAL_HEADING}}</div>
+                <div class="signal-grid">
+                  {{SIGNAL_CARDS}}
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="fold-item">
+            <summary>{{RISK_MAP_HEADING}}</summary>
+            <div class="panel-stack">
+              <div class="skyline-chart">
+                {{HOTSPOT_CHART}}
+              </div>
+              <div class="heat-list">
+                {{DIRECTORY_HEAT_ROWS}}
+              </div>
+            </div>
+          </details>
+
+          <details class="fold-item">
+            <summary>主要发现</summary>
+            <div class="finding-grid">
+              {{FINDING_SECTIONS}}
+            </div>
+          </details>
+
+          <details class="fold-item">
+            <summary>{{FRAMEWORK_HEADING}}</summary>
+            <div>
+              <table class="compact">
+                <thead>
+                  <tr>
+                    <th>{{FRAMEWORK_TABLE_FILE}}</th>
+                    <th>{{FRAMEWORK_TABLE_RULE}}</th>
+                    <th>{{FRAMEWORK_TABLE_STATUS}}</th>
+                    <th>{{FRAMEWORK_TABLE_SUMMARY}}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{FRAMEWORK_ROWS}}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>优先级整改计划</h2>
+        <ul>
+          {{PRIORITY_ITEMS}}
+        </ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
