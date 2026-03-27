@@ -183,6 +183,7 @@ export interface BusinessOversizedFile {
 export interface CleanupCandidate {
   file: string
   cleanupScore: number
+  unusedBlockLineCount: number
   commentedCodeCount: number
   todoCount: number
   consoleCount: number
@@ -190,7 +191,15 @@ export interface CleanupCandidate {
   disabledDirectiveCount: number
   debugCount: number
   duplicateImportCount: number
+  ranges: CleanupRange[]
   summary: string
+}
+
+export interface CleanupRange {
+  lineStart: number
+  lineEnd: number
+  lineCount: number
+  reason: string
 }
 
 export interface DuplicateFunctionGroup {
@@ -208,6 +217,14 @@ export interface SimilarFunctionCluster {
   occurrenceCount: number
   files: string[]
   locations: string[]
+  summary: string
+}
+
+export interface ReuseCase {
+  kind: 'duplicate' | 'similar' | 'mixed'
+  title: string
+  locations: string[]
+  recommendation: string
   summary: string
 }
 
@@ -255,6 +272,7 @@ export interface AuditedFile {
   functionFingerprints: string[]
   functionOccurrences: FunctionOccurrence[]
   functionFingerprintEntries: FunctionFingerprintEntry[]
+  cleanupRanges: CleanupRange[]
   extension: string
 }
 
@@ -330,6 +348,7 @@ export interface AuditAnalysis {
   cleanupCandidates: CleanupCandidate[]
   duplicateFunctionGroups: DuplicateFunctionGroup[]
   similarFunctionClusters: SimilarFunctionCluster[]
+  reuseCases: ReuseCase[]
   hotspots: AuditedFile[]
   directoryHotspots: DirectoryStat[]
   splitSuggestions: SplitSuggestion[]
@@ -367,6 +386,7 @@ export interface AuditSummary {
   cleanupCandidates: CleanupCandidate[]
   duplicateFunctionGroups: DuplicateFunctionGroup[]
   similarFunctionClusters: SimilarFunctionCluster[]
+  reuseCases: ReuseCase[]
   quickWins: QuickWin[]
   refactorTargets: RefactorTarget[]
   issueCards: IssueCard[]

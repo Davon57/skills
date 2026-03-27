@@ -993,12 +993,12 @@
       </section>
 
       <section class="panel">
-        <h2>{{MANUAL_REPAIR_HEADING}}</h2>
-        <p class="section-note">{{MANUAL_REPAIR_SUMMARY}}</p>
-        <div class="main-grid">
+        <h2>按流程修复</h2>
+        <p class="section-note">报告默认只保留 4 个步骤，打开后直接按顺序处理，不需要先理解整套评分体系。</p>
+        <div class="stack">
           <div class="card">
-            <h3>{{OVERSIZED_BUSINESS_HEADING}}</h3>
-            <p class="section-note">{{OVERSIZED_BUSINESS_SUMMARY}}</p>
+            <h3>第一步：找出超过 800 行的业务文件</h3>
+            <p class="section-note">优先显示 `.vue` 文件，再显示页面组件、业务组件和脚本文件，仅保留前 30 个业务文件，不包含依赖目录。</p>
             <table>
               <thead>
                 <tr>
@@ -1015,19 +1015,18 @@
             </table>
           </div>
           <div class="card">
-            <h3>{{CLEANUP_HEADING}}</h3>
-            <p class="section-note">{{CLEANUP_SUMMARY}}</p>
+            <h3>第二步：找出疑似未删除的大段代码</h3>
+            <p class="section-note">只列出能定位到行号范围的文件，按修复价值排序，最多展示 30 个文件。</p>
             <table>
               <thead>
                 <tr>
                   <th>{{CLEANUP_FILE}}</th>
-                  <th>{{CLEANUP_SCORE}}</th>
-                  <th>{{CLEANUP_COMMENTED}}</th>
+                  <th>区间</th>
+                  <th>疑似旧代码行数</th>
                   <th>{{CLEANUP_TODO}}</th>
                   <th>{{CLEANUP_CONSOLE}}</th>
                   <th>{{CLEANUP_DEBUGGER}}</th>
                   <th>{{CLEANUP_SKIPPED_CHECKS}}</th>
-                  <th>{{CLEANUP_DUPLICATE_IMPORTS}}</th>
                   <th>{{CLEANUP_SUMMARY_COLUMN}}</th>
                 </tr>
               </thead>
@@ -1036,36 +1035,35 @@
               </tbody>
             </table>
           </div>
+          <div class="card">
+            <h3>第三步：重复函数和逻辑案例</h3>
+            <p class="section-note">每一行就是一个小案例，帮助判断是应该拆分、抽公共能力，还是直接合并。</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>案例</th>
+                  <th>位置</th>
+                  <th>建议动作</th>
+                  <th>总结</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{REUSE_CASE_ROWS}}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
-      <div class="board-grid">
-        <section class="panel col-8">
-          <h2>{{ISSUE_CARDS_HEADING}}</h2>
-          <p class="section-note">把高风险文件拆成卡片，开发者打开报告后就能立刻看到为什么要优先处理，以及第一步怎么下手。</p>
-          <div class="action-card-grid">
-            {{ISSUE_CARDS}}
-          </div>
-        </section>
-
-        <section class="panel col-4">
-          <h2>{{QUICK_WINS_HEADING}}</h2>
-          <p class="section-note">先处理最容易落地、但对质量收益最大的动作，帮助团队快速止血。</p>
-          <table>
-            <thead>
-              <tr>
-                <th>{{QUICK_WIN_TABLE_PRIORITY}}</th>
-                <th>{{QUICK_WIN_TABLE_FILE}}</th>
-                <th>{{QUICK_WIN_TABLE_ACTION}}</th>
-                <th>{{QUICK_WIN_TABLE_REASON}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{QUICK_WIN_ROWS}}
-            </tbody>
-          </table>
-        </section>
-      </div>
+      <section class="panel">
+        <h2>第四步：报告产物</h2>
+        <p class="section-note">本次审计已经生成可交付报告，开发者可以直接基于这份 HTML 或 Markdown 继续修复。</p>
+        <ul>
+          <li>报告已按当前项目分析结果生成</li>
+          <li>建议优先按“第一步 → 第二步 → 第三步”的顺序执行</li>
+          <li>补充分析放在下面折叠区，只有需要时再展开</li>
+        </ul>
+      </section>
 
       <section class="panel">
         <div class="aside-kicker">补充分析</div>

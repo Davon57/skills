@@ -236,103 +236,61 @@ function renderMarkdownRoadmap(analysis: AuditAnalysis, resources: AuditResource
 }
 
 function generateMarkdownReport(projectName: string, auditDate: string, analysis: AuditAnalysis, resources: AuditResources): string {
-  const stackItems = buildStackItems(analysis, resources)
   const lines: string[] = []
 
   lines.push(resources.locale.markdown.title)
   lines.push('')
-  lines.push(resources.locale.markdown.summaryHeading)
+  lines.push('## 摘要')
   lines.push('')
-  lines.push(`- ${resources.locale.markdown.summaryProject}: ${projectName}`)
-  lines.push(`- ${resources.locale.markdown.summaryDate}: ${auditDate}`)
-  lines.push(`- ${resources.locale.markdown.summaryScore}: ${analysis.scores.overall}`)
-  lines.push(`- ${resources.locale.markdown.summaryGrade}: ${analysis.scores.grade}`)
-  lines.push(`- ${resources.locale.markdown.summaryRisks}: ${analysis.primaryRisks.join(', ')}`)
+  lines.push(`- 项目：${projectName}`)
+  lines.push(`- 日期：${auditDate}`)
+  lines.push(`- 结论：按“超大文件 → 冗余代码 → 重复逻辑”的顺序处理即可开始修复`)
+  lines.push(`- 风险摘要：${analysis.primaryRisks.join('，')}`)
   lines.push('')
-  lines.push(resources.locale.markdown.stackHeading)
+  lines.push('## 第一步：超过 800 行的业务文件（前 30）')
   lines.push('')
-  lines.push(...stackItems.map((item) => `- ${item}`))
-  lines.push('')
-  lines.push(resources.locale.markdown.scoreHeading)
-  lines.push('')
-  lines.push(`| ${resources.locale.markdown.scoreTableHeaderDimension} | ${resources.locale.markdown.scoreTableHeaderScore} |`)
-  lines.push('| --- | ---: |')
-  lines.push(`| ${resources.locale.markdown.scoreArchitecture} | ${analysis.scores.architecture} |`)
-  lines.push(`| ${resources.locale.markdown.scoreNaming} | ${analysis.scores.naming} |`)
-  lines.push(`| ${resources.locale.markdown.scoreHygiene} | ${analysis.scores.hygiene} |`)
-  lines.push(`| ${resources.locale.markdown.scoreMaintainability} | ${analysis.scores.maintainability} |`)
-  lines.push(`| ${resources.locale.markdown.scoreTooling} | ${analysis.scores.tooling} |`)
-  lines.push('')
-  lines.push(resources.locale.markdown.quickWinsHeading)
-  lines.push('')
-  lines.push(...renderMarkdownQuickWins(analysis.quickWins, resources))
-  lines.push('')
-  lines.push(resources.locale.markdown.issueCardsHeading)
-  lines.push('')
-
-  if (analysis.issueCards.length === 0) {
-    lines.push(`- ${resources.locale.general.none}`)
-    lines.push('')
+  lines.push('| 文件 | 行数 | 类型 | 职责域 | 说明 |')
+  lines.push('| --- | ---: | --- | --- | --- |')
+  if (analysis.oversizedBusinessFiles.length === 0) {
+    lines.push(`| - | 0 | - | - | ${resources.locale.general.none} |`)
   } else {
-    for (const issueCard of analysis.issueCards) {
-      lines.push(`### ${issueCard.file}`)
-      lines.push('')
-      lines.push(`- ${resources.locale.markdown.issueCardPriority}: ${issueCard.priority}`)
-      lines.push(`- ${resources.locale.markdown.issueCardRisk}: ${issueCard.risk}`)
-      lines.push(`- ${resources.locale.markdown.issueCardWhy}: ${issueCard.whyPriority}`)
-      lines.push(`- ${resources.locale.markdown.issueCardIssues}: ${formatList(issueCard.issueTags)}`)
-      lines.push(`- ${resources.locale.markdown.issueCardAction}: ${issueCard.primaryAction}`)
-      lines.push(`- ${resources.locale.markdown.issueCardSplit}: ${formatList(issueCard.splitPlan)}`)
-      lines.push('')
+    for (const item of analysis.oversizedBusinessFiles) {
+      lines.push(`| ${escapeMarkdownTable(item.file)} | ${item.lines} | ${escapeMarkdownTable(item.businessType)} | ${escapeMarkdownTable(formatDomainLabel(item.domain))} | ${escapeMarkdownTable(item.summary)} |`)
     }
   }
-
-  lines.push(resources.locale.markdown.hotspotHeading)
   lines.push('')
-  lines.push(...renderMarkdownHotspots(analysis, resources))
+  lines.push('## 第二步：疑似未删除的大段代码（前 30 个文件）')
   lines.push('')
-  lines.push(resources.locale.markdown.refactorHeading)
-  lines.push('')
-  lines.push(...renderMarkdownRefactorTargets(analysis.refactorTargets, resources))
-  lines.push('')
-  lines.push(resources.locale.markdown.directoryHeading)
-  lines.push('')
-  lines.push(...renderMarkdownDirectoryHotspots(analysis, resources))
-  lines.push('')
-  lines.push(resources.locale.markdown.splitHeading)
-  lines.push('')
-  lines.push(...renderMarkdownSplitSuggestions(analysis.splitSuggestions, resources))
-  lines.push(resources.locale.markdown.mixedHeading)
-  lines.push('')
-  lines.push(...renderMarkdownMixedResponsibilities(analysis, resources))
-  lines.push('')
-  lines.push(resources.locale.markdown.externalHeading)
-  lines.push('')
-  lines.push(`| ${resources.locale.markdown.externalTool} | ${resources.locale.markdown.externalStatus} | ${resources.locale.markdown.externalErrors} | ${resources.locale.markdown.externalWarnings} | ${resources.locale.markdown.externalSummary} |`)
-  lines.push('| --- | --- | ---: | ---: | --- |')
-  lines.push(`| - | ${resources.locale.general.none} | 0 | 0 | ${resources.locale.general.none} |`)
-  lines.push('')
-  lines.push(resources.locale.markdown.frameworkHeading)
-  lines.push('')
-  lines.push(...renderMarkdownFrameworkObservations(analysis.frameworkObservations, resources))
-  lines.push('')
-  lines.push(resources.locale.markdown.roadmapHeading)
-  lines.push('')
-  lines.push(...renderMarkdownRoadmap(analysis, resources))
-  lines.push('')
-  lines.push(resources.locale.markdown.findingsHeading)
-  lines.push('')
-  lines.push(...renderMarkdownFindings(analysis.findings, resources))
-  lines.push(resources.locale.markdown.priorityHeading)
-  lines.push('')
-  for (const item of resources.rubric.recommendationOrder) {
-    lines.push(`- ${item}`)
+  lines.push('| 文件 | 区间 | 疑似旧代码行数 | TODO/FIXME | console | debugger | 跳过检查 | 说明 |')
+  lines.push('| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |')
+  if (analysis.cleanupCandidates.length === 0) {
+    lines.push(`| - | - | 0 | 0 | 0 | 0 | 0 | ${resources.locale.general.none} |`)
+  } else {
+    for (const item of analysis.cleanupCandidates) {
+      lines.push(
+        `| ${escapeMarkdownTable(item.file)} | ${escapeMarkdownTable(item.ranges.map((range) => `L${range.lineStart}-L${range.lineEnd}`).join(' / '))} | ${item.unusedBlockLineCount} | ${item.todoCount} | ${item.consoleCount} | ${item.debuggerCount} | ${item.disabledDirectiveCount} | ${escapeMarkdownTable(item.summary)} |`
+      )
+    }
   }
   lines.push('')
-  lines.push(resources.locale.markdown.automationHeading)
+  lines.push('## 第三步：重复函数和逻辑案例（前 30 个案例）')
   lines.push('')
-  lines.push(`- ${resources.locale.markdown.existingScriptsNone}`)
-  lines.push(`- ${resources.locale.markdown.recommendedScripts}`)
+  lines.push('| 案例 | 位置 | 建议动作 | 总结 |')
+  lines.push('| --- | --- | --- | --- |')
+  if (analysis.reuseCases.length === 0) {
+    lines.push(`| - | - | - | ${resources.locale.general.none} |`)
+  } else {
+    for (const item of analysis.reuseCases) {
+      lines.push(
+        `| ${escapeMarkdownTable(item.title)} | ${escapeMarkdownTable(item.locations.join(' / '))} | ${escapeMarkdownTable(item.recommendation)} | ${escapeMarkdownTable(item.summary)} |`
+      )
+    }
+  }
+  lines.push('')
+  lines.push('## 第四步：报告产物')
+  lines.push('')
+  lines.push('- 本次审计已经生成报告产物，可直接保存并分发给开发者按顺序修复')
+  lines.push('- 如需补充评分卡、风险地图、治理路线图，可在后续扩展模式下再启用')
 
   return `${lines.join('\n')}\n`
 }
@@ -535,13 +493,28 @@ function buildOversizedBusinessRows(analysis: AuditAnalysis, resources: AuditRes
 
 function buildCleanupRows(analysis: AuditAnalysis, resources: AuditResources): string {
   if (analysis.cleanupCandidates.length === 0) {
-    return `<tr><td>-</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>${escapeHtml(resources.locale.general.none)}</td></tr>`
+    return `<tr><td>-</td><td>-</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>${escapeHtml(resources.locale.general.none)}</td></tr>`
   }
 
   return analysis.cleanupCandidates
     .map(
       (item) =>
-        `<tr><td>${escapeHtml(item.file)}</td><td>${item.cleanupScore}</td><td>${item.commentedCodeCount}</td><td>${item.todoCount}</td><td>${item.consoleCount}</td><td>${item.debuggerCount}</td><td>${item.disabledDirectiveCount}</td><td>${item.duplicateImportCount}</td><td>${escapeHtml(item.summary)}</td></tr>`
+        `<tr><td>${escapeHtml(item.file)}</td><td>${escapeHtml(
+          item.ranges.map((range) => `L${range.lineStart}-L${range.lineEnd}`).join(' / ')
+        )}</td><td>${item.unusedBlockLineCount}</td><td>${item.todoCount}</td><td>${item.consoleCount}</td><td>${item.debuggerCount}</td><td>${item.disabledDirectiveCount}</td><td>${escapeHtml(item.summary)}</td></tr>`
+    )
+    .join('\n')
+}
+
+function buildReuseCaseRows(analysis: AuditAnalysis, resources: AuditResources): string {
+  if (analysis.reuseCases.length === 0) {
+    return `<tr><td>-</td><td>-</td><td>-</td><td>${escapeHtml(resources.locale.general.none)}</td></tr>`
+  }
+
+  return analysis.reuseCases
+    .map(
+      (item) =>
+        `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.locations.join(' / '))}</td><td>${escapeHtml(item.recommendation)}</td><td>${escapeHtml(item.summary)}</td></tr>`
     )
     .join('\n')
 }
@@ -769,6 +742,7 @@ function generateHtmlReport(projectName: string, auditDate: string, analysis: Au
     ['{{CLEANUP_DUPLICATE_IMPORTS}}', escapeHtml(resources.locale.html.cleanupDuplicateImports)],
     ['{{CLEANUP_SUMMARY_COLUMN}}', escapeHtml(resources.locale.html.cleanupSummaryColumn)],
     ['{{CLEANUP_ROWS}}', buildCleanupRows(analysis, resources)],
+    ['{{REUSE_CASE_ROWS}}', buildReuseCaseRows(analysis, resources)],
     ['{{DUPLICATE_FUNCTIONS_HEADING}}', escapeHtml(resources.locale.html.duplicateFunctionsHeading)],
     ['{{DUPLICATE_FUNCTIONS_SUMMARY}}', escapeHtml(resources.locale.html.duplicateFunctionsSummary)],
     ['{{DUPLICATE_FUNCTION_NAME}}', escapeHtml(resources.locale.html.duplicateFunctionName)],

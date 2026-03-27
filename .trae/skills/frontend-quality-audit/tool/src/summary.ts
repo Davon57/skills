@@ -37,6 +37,7 @@ export function createAuditSummary(
     cleanupCandidates: analysis.cleanupCandidates,
     duplicateFunctionGroups: analysis.duplicateFunctionGroups,
     similarFunctionClusters: analysis.similarFunctionClusters,
+    reuseCases: analysis.reuseCases,
     quickWins: analysis.quickWins,
     refactorTargets: analysis.refactorTargets,
     issueCards: analysis.issueCards,

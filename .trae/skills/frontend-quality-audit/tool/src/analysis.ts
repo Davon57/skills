@@ -7,6 +7,7 @@ import {
   AuditedFile,
   BusinessOversizedFile,
   CleanupCandidate,
+  CleanupRange,
   DirectoryStat,
   DuplicateFunctionGroup,
   DuplicateImportMetric,
@@ -22,6 +23,7 @@ import {
   QuickWin,
   RefactorTarget,
   RoadmapItem,
+  ReuseCase,
   SimilarFunctionCluster,
   SplitSuggestion,
   ToolingMetadata,
@@ -225,6 +227,71 @@ function getCommentedCodeCount(lines: string[]): number {
   }, 0)
 }
 
+function normalizeCommentContent(line: string): string {
+  return line
+    .trim()
+    .replace(/^\/\//u, '')
+    .replace(/^\/\*/u, '')
+    .replace(/^\*/u, '')
+    .replace(/\*\/$/u, '')
+    .trim()
+}
+
+function isCommentedCodeLine(line: string): boolean {
+  const trimmed = line.trim()
+  if (!/^(\/\/|\/\*|\*|\*\/)/u.test(trimmed)) {
+    return false
+  }
+
+  const content = normalizeCommentContent(trimmed)
+  if (content.length === 0) {
+    return false
+  }
+
+  return /(\bconst\b|\blet\b|\bvar\b|\bfunction\b|\breturn\b|\bif\b|\bfor\b|\bwhile\b|\bimport\b|\bexport\b|\bclass\b|\bawait\b|=>|<\/?[A-Za-z][^>]*>|\{|\}|\)|\()/u.test(
+    content
+  )
+}
+
+function extractUnusedCodeRanges(lines: string[]): CleanupRange[] {
+  const ranges: CleanupRange[] = []
+  let start: number | null = null
+  let end = 0
+
+  const pushCurrentRange = (): void => {
+    if (start === null) {
+      return
+    }
+
+    const lineCount = end - start + 1
+    if (lineCount >= 3) {
+      ranges.push({
+        lineStart: start,
+        lineEnd: end,
+        lineCount,
+        reason: '疑似整段注释旧代码'
+      })
+    }
+    start = null
+    end = 0
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (isCommentedCodeLine(lines[index])) {
+      if (start === null) {
+        start = index + 1
+      }
+      end = index + 1
+      continue
+    }
+
+    pushCurrentRange()
+  }
+
+  pushCurrentRange()
+  return ranges
+}
+
 function extractFunctionNames(content: string): string[] {
   return [...new Set(extractFunctionOccurrences(content.split(/\r?\n/u)).map((item) => item.name))]
 }
@@ -377,7 +444,7 @@ function getBusinessPriority(file: AuditedFile): number {
 
 function createOversizedBusinessFiles(files: AuditedFile[]): BusinessOversizedFile[] {
   return files
-    .filter((file) => file.lineCount >= 1000 && isBusinessFile(file))
+    .filter((file) => file.lineCount >= 800 && isBusinessFile(file))
     .sort((left, right) => {
       const priorityGap = getBusinessPriority(left) - getBusinessPriority(right)
       if (priorityGap !== 0) {
@@ -386,6 +453,7 @@ function createOversizedBusinessFiles(files: AuditedFile[]): BusinessOversizedFi
 
       return right.lineCount - left.lineCount || left.relativePath.localeCompare(right.relativePath)
     })
+    .slice(0, 30)
     .map((file) => ({
       file: file.relativePath,
       lines: file.lineCount,
@@ -399,15 +467,21 @@ function createOversizedBusinessFiles(files: AuditedFile[]): BusinessOversizedFi
 function createCleanupCandidates(files: AuditedFile[]): CleanupCandidate[] {
   return files
     .map((file) => {
+      const ranges = file.cleanupRanges
       const debugCount = file.consoleCount + file.debuggerCount + file.disabledDirectiveCount
       const duplicateImportCount = file.duplicateImports.length
+      const unusedBlockLineCount = ranges.reduce((total, item) => total + item.lineCount, 0)
       const cleanupScore =
-        file.commentedCodeCount * 4 +
+        unusedBlockLineCount * 3 +
+        file.commentedCodeCount * 2 +
         file.todoCount * 2 +
         debugCount * 2 +
         duplicateImportCount * 2
 
       const parts: string[] = []
+      if (ranges.length > 0) {
+        parts.push(`疑似未删除代码 ${ranges.map((item) => `L${item.lineStart}-L${item.lineEnd}`).join('、')}`)
+      }
       if (file.commentedCodeCount > 0) {
         parts.push(`疑似注释代码 ${file.commentedCodeCount} 行`)
       }
@@ -424,6 +498,7 @@ function createCleanupCandidates(files: AuditedFile[]): CleanupCandidate[] {
       return {
         file: file.relativePath,
         cleanupScore,
+        unusedBlockLineCount,
         commentedCodeCount: file.commentedCodeCount,
         todoCount: file.todoCount,
         consoleCount: file.consoleCount,
@@ -431,11 +506,13 @@ function createCleanupCandidates(files: AuditedFile[]): CleanupCandidate[] {
         disabledDirectiveCount: file.disabledDirectiveCount,
         debugCount,
         duplicateImportCount,
+        ranges,
         summary: parts.join('，')
       }
     })
-    .filter((item) => item.cleanupScore > 0)
+    .filter((item) => item.cleanupScore > 0 && item.ranges.length > 0)
     .sort((left, right) => right.cleanupScore - left.cleanupScore || left.file.localeCompare(right.file))
+    .slice(0, 30)
 }
 
 function createDuplicateFunctionGroups(files: AuditedFile[]): DuplicateFunctionGroup[] {
@@ -488,6 +565,40 @@ function createSimilarFunctionClusters(files: AuditedFile[]): SimilarFunctionClu
     .sort((left, right) => right.fileCount - left.fileCount || right.occurrenceCount - left.occurrenceCount || left.name.localeCompare(right.name))
 }
 
+function createReuseCases(
+  duplicateFunctionGroups: DuplicateFunctionGroup[],
+  similarFunctionClusters: SimilarFunctionCluster[],
+  mixedResponsibilityFiles: MixedResponsibilityFile[]
+): ReuseCase[] {
+  const duplicateCases: ReuseCase[] = duplicateFunctionGroups.map((item) => ({
+    kind: 'duplicate',
+    title: `重复函数：${item.name}`,
+    locations: item.locations,
+    recommendation: '建议评估是否可以抽成公共方法或工具函数',
+    summary: item.summary
+  }))
+
+  const similarCases: ReuseCase[] = similarFunctionClusters.map((item) => ({
+    kind: 'similar',
+    title: `相似逻辑：${item.name}`,
+    locations: item.locations,
+    recommendation: '建议评估是否可以抽成公共 hooks、组合函数或服务层方法',
+    summary: item.summary
+  }))
+
+  const mixedCases: ReuseCase[] = mixedResponsibilityFiles.slice(0, 10).map((item) => ({
+    kind: 'mixed',
+    title: `职责混杂：${item.file}`,
+    locations: [item.file],
+    recommendation: '建议按视图、状态、接口、工具逻辑拆分文件',
+    summary: item.summary
+  }))
+
+  return [...duplicateCases, ...similarCases, ...mixedCases]
+    .sort((left, right) => right.locations.length - left.locations.length || left.title.localeCompare(right.title))
+    .slice(0, 30)
+}
+
 function createFileAudit(file: WorkspaceFile, resources: AuditResources): {
   auditedFile: AuditedFile
   largeFile?: FileSizeMetric
@@ -520,6 +631,7 @@ function createFileAudit(file: WorkspaceFile, resources: AuditResources): {
   const functionOccurrences = extractFunctionOccurrences(file.lines)
   const functionFingerprintEntries = extractFunctionFingerprintEntries(file.lines)
   const functionFingerprints = extractFunctionFingerprints(file.lines)
+  const cleanupRanges = extractUnusedCodeRanges(file.lines)
   const splitSuggestions = file.lineCount >= thresholds.largeFileLines ? getSplitRecommendations(file, resources) : []
   const duplicateImportCount = duplicateImportMetrics.length
 
@@ -621,6 +733,7 @@ function createFileAudit(file: WorkspaceFile, resources: AuditResources): {
       functionFingerprints,
       functionOccurrences,
       functionFingerprintEntries,
+      cleanupRanges,
       extension: file.extension
     },
     largeFile:
@@ -1107,6 +1220,7 @@ export function analyzeWorkspaceSnapshot(snapshot: WorkspaceSnapshot, tooling: T
   const cleanupCandidates = createCleanupCandidates(auditedFiles)
   const duplicateFunctionGroups = createDuplicateFunctionGroups(auditedFiles)
   const similarFunctionClusters = createSimilarFunctionClusters(auditedFiles)
+  const reuseCases = createReuseCases(duplicateFunctionGroups, similarFunctionClusters, sortByCategoryDesc(mixedResponsibilityFiles))
   const directoryHotspots = [...directoryStats.values()]
     .sort((left, right) => right.risk - left.risk || right.largeFiles - left.largeFiles || right.fileCount - left.fileCount)
     .slice(0, 10)
@@ -1149,6 +1263,7 @@ export function analyzeWorkspaceSnapshot(snapshot: WorkspaceSnapshot, tooling: T
     cleanupCandidates,
     duplicateFunctionGroups,
     similarFunctionClusters,
+    reuseCases,
     hotspots,
     directoryHotspots,
     splitSuggestions: sortByLinesDesc(splitSuggestions),
